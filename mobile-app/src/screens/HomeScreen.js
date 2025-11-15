@@ -16,7 +16,6 @@ import { colors, radii, spacing } from "../styles/theme";
 import TodoForm from "../components/TodoForm";
 import TodoCard from "../components/TodoCard";
 import CalendarView from "../components/Calendar";
-import AddressLookup from "../components/AddressLookup";
 
 export default function HomeScreen() {
   const { user, signOut } = useAuth();
