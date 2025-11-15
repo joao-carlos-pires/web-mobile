@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radii, spacing } from "../styles/theme";
+import { feriadosService } from "../services/feriadosService";
 
 const monthNames = [
   "JANEIRO",
@@ -45,6 +46,25 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
   const [viewDate, setViewDate] = useState(
     new Date(today.getFullYear(), today.getMonth(), 1)
   );
+  const [feriados, setFeriados] = useState([]);
+  const [loadingFeriados, setLoadingFeriados] = useState(false);
+
+  // Carregar feriados quando o ano mudar
+  useEffect(() => {
+    carregarFeriados(viewDate.getFullYear());
+  }, [viewDate.getFullYear()]);
+
+  const carregarFeriados = async (ano) => {
+    try {
+      setLoadingFeriados(true);
+      const dados = await feriadosService.buscarFeriados(ano);
+      setFeriados(dados);
+    } catch (error) {
+      console.error('Erro ao carregar feriados:', error);
+    } finally {
+      setLoadingFeriados(false);
+    }
+  };
 
   const monthStats = useMemo(() => {
     const currentYear = viewDate.getFullYear();
@@ -88,6 +108,10 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
       const allCompleted = tasks.length > 0 && tasks.every((todo) => todo.isCompleted);
       const isSelected = sameDay(selectedDate, date);
       const isToday = sameDay(today, date);
+      
+      // Verificar se é feriado
+      const feriado = feriadosService.verificarFeriado(date, feriados);
+      const isFeriado = !!feriado;
 
       days.push(
         <Pressable
@@ -98,6 +122,7 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
             isSelected && styles.daySelected,
             isToday && styles.dayToday,
             allCompleted && styles.dayCompleted,
+            isFeriado && styles.dayFeriado,
           ]}
           onPress={() => handleSelectDay(date)}
         >
@@ -105,6 +130,7 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
             style={[
               styles.dayText,
               (isSelected || isToday) && { color: "#fff" },
+              isFeriado && !isSelected && !isToday && styles.feriadoText,
             ]}
           >
             {day}
@@ -138,6 +164,9 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
       new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1)
     );
   };
+
+  // Verificar se o dia selecionado é feriado
+  const feriadoSelecionado = feriadosService.verificarFeriado(selectedDate, feriados);
 
   return (
     <View style={styles.wrapper}>
@@ -178,6 +207,16 @@ export default function CalendarView({ selectedDate, todos, onDateSelect }) {
         <Text style={styles.listTitle}>
           Tarefas de {selectedDate.toLocaleDateString("pt-BR")}:
         </Text>
+        
+        {/* Mostrar informação de feriado se houver */}
+        {feriadoSelecionado && (
+          <View style={styles.feriadoInfo}>
+            <Text style={styles.feriadoInfoText}>
+              Feriado: {feriadoSelecionado.name}
+            </Text>
+          </View>
+        )}
+        
         {selectedDayTodos.length === 0 ? (
           <Text style={styles.emptyText}>Nenhuma tarefa neste dia.</Text>
         ) : (
@@ -291,6 +330,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#dcfce7",
     borderColor: colors.success,
   },
+  // Estilos para feriados (sem emoji)
+  dayFeriado: {
+    backgroundColor: "#fce7f3",
+    borderColor: "#ec4899",
+    borderWidth: 2,
+  },
+  feriadoText: {
+    color: "#be185d",
+    fontWeight: "700",
+  },
+  feriadoInfo: {
+    backgroundColor: "#fce7f3",
+    padding: spacing.sm,
+    borderRadius: radii.sm,
+    marginBottom: spacing.xs,
+  },
+  feriadoInfoText: {
+    color: "#be185d",
+    fontWeight: "600",
+    textAlign: "center",
+  },
   dayText: {
     fontWeight: "600",
     color: colors.text,
@@ -323,4 +383,3 @@ const styles = StyleSheet.create({
     color: colors.muted,
   },
 });
-
